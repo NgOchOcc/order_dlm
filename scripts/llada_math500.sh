@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_llada.py \
+CUDA_VISIBLE_DEVICES=0 python eval_llada.py \
     --model_name GSAI-ML/LLaDA-8B-Base \
     --dataset_path dataset/test500.jsonl \
     --steps 1024 \
