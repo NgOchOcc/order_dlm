@@ -55,7 +55,8 @@ class DreamEvaluator:
         self.model = AutoModel.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16 if self.device == "cuda" else torch.float32,
-            trust_remote_code=True
+            trust_remote_code=True,
+            attn_implementation="eager"  # Disable flash attention
         ).to(self.device).eval()
 
         print(f"Model loaded on {self.device}")
