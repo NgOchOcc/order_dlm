@@ -28,8 +28,10 @@ def verify_answer(predicted, ground_truth):
         config = LatexExtractionConfig()
         pred_parsed = parse(predicted, extraction_config=config)
         gt_parsed = parse(ground_truth, extraction_config=config)
-        return verify(pred_parsed, gt_parsed)
-    except Exception:
+        result = verify(pred_parsed, gt_parsed)
+        # Convert to boolean if needed
+        return bool(result)
+    except Exception as e:
         # Fallback to string comparison
         norm = lambda x: x.strip().replace(",", "").replace("$", "").replace("\\", "").lower()
         return norm(predicted) == norm(ground_truth)
@@ -234,6 +236,10 @@ class HDOEvaluator:
                 gt_answer = self.extract_answer(ground_truth) if isinstance(ground_truth, str) else str(ground_truth)
                 is_correct = verify_answer(predicted, gt_answer)
 
+                # Debug: Check if verify_answer is working correctly
+                if predicted == gt_answer and not is_correct:
+                    print(f"  WARNING: Predicted '{predicted}' == GT '{gt_answer}' but verify returned {is_correct}")
+
                 if is_correct:
                     correct += 1
                 total += 1
@@ -320,7 +326,6 @@ def main():
 
     # Model and dataset
     parser.add_argument("--model_name", default="GSAI-ML/LLaDA-8B-Base")
-    parser.add_argument("--verifier_type", default="lightweight", choices=["qwen_vllm", "lightweight"])
     parser.add_argument("--verifier_gpu", type=int, default=1, help="GPU for Qwen PRM")
     parser.add_argument("--dataset_path", default="dataset/test500.jsonl")
     parser.add_argument("--output_file", default="hdo_results.json")
@@ -346,7 +351,6 @@ def main():
 
     evaluator = HDOEvaluator(
         model_name=args.model_name,
-        verifier_type=args.verifier_type,
         verifier_gpu=args.verifier_gpu,
         device=args.device,
         beta=args.beta,

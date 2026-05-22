@@ -14,7 +14,6 @@ from math_verify.parser import ExprExtractionConfig, LatexExtractionConfig
 
 
 def extract_boxed_answer(text):
-    """Extract answer from \\boxed{} format"""
     match = re.search(r'\\boxed\{([^}]+)\}', text)
     if match:
         return match.group(1).strip()
@@ -22,16 +21,11 @@ def extract_boxed_answer(text):
 
 
 def verify_answer(predicted, ground_truth):
-    """Verify answer using math_verify"""
-    try:
-        config = LatexExtractionConfig()
-        pred_parsed = parse(predicted, extraction_config=config)
-        gt_parsed = parse(ground_truth, extraction_config=config)
-        return verify(pred_parsed, gt_parsed)
-    except Exception as e:
-        # Fallback to string comparison
-        norm = lambda x: x.strip().replace(",", "").replace("$", "").replace("\\", "").lower()
-        return norm(predicted) == norm(ground_truth)
+    config = LatexExtractionConfig()
+    pred_parsed = parse(predicted, extraction_config=config)
+    gt_parsed = parse(ground_truth, extraction_config=config)
+    result = verify(pred_parsed, gt_parsed)
+    return bool(result)
 
 
 def add_gumbel_noise(logits, temperature):
@@ -226,27 +220,32 @@ class LLaDAEvaluator:
 
             try:
                 sample_start = time.time()
-
-                generated = self.generate(problem, steps=steps, gen_length=gen_length,
-                                         block_length=block_length, temperature=temperature, cfg_scale=cfg_scale)
+                generated = self.generate(
+                    problem, steps=steps, 
+                    gen_length=gen_length,
+                    block_length=block_length, 
+                    temperature=temperature, 
+                    cfg_scale=cfg_scale
+                )
                 predicted = self.extract_answer(generated)
                 gt_answer = self.extract_answer(ground_truth) if isinstance(ground_truth, str) else str(ground_truth)
                 is_correct = verify_answer(predicted, gt_answer)
 
-                if is_correct:
-                    correct += 1
-                total += 1
+                # Debug: Check if verify_answer is working correctly
+                if predicted == gt_answer and not is_correct:
+                    print(f"  WARNING: Predicted '{predicted}' == GT '{gt_answer}' but verify returned {is_correct}")
 
+                correct += 1 if is_correct
+                total += 1
                 sample_time = time.time() - sample_start
                 total_time = time.time() - start_time
                 acc = correct / total * 100
-
-                # Print detailed info for each sample
                 status = "✓" if is_correct else "✗"
-                print(f"{status} [{idx+1}/{len(samples)}] | Acc: {correct}/{total} = {acc:.2f}% | "
-                      f"Time: {format_time(sample_time)} | Total: {format_time(total_time)}")
-                print(f"  Pred: {predicted}")
-                print(f"  GT:   {gt_answer}")
+                print(
+                    f"{status} [{idx+1}/{len(samples)}] | Acc: {correct}/{total} = {acc:.2f}% | "
+                    f"Time: {format_time(sample_time)} | Total: {format_time(total_time)} | "
+                    f"Pred: {predicted} | GT:   {gt_answer}"
+                )
                 print("-"*100)
 
                 results.append({

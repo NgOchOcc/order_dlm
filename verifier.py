@@ -3,19 +3,23 @@ import os
 import torch
 
 from vllm import LLM, SamplingParams
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
 
 
 class PRMScorer:
-    def __init__(self, model="Qwen/Qwen2.5-Math-PRM-7B", gpu_id=1, gpu_memory_utilization=0.9, tensor_parallel_size=1, max_model_len=4096, task="reward"):        
+    def __init__(self, model="Qwen/Qwen2.5-Math-PRM-7B", gpu_id=1, gpu_memory_utilization=0.9, tensor_parallel_size=1, max_model_len=4096, task="reward"):
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
         self.llm = LLM(
             model=model,
             task=task,
             tensor_parallel_size=tensor_parallel_size,
             gpu_memory_utilization=gpu_memory_utilization,
-            device=gpu_id,
             trust_remote_code=True,
             max_model_len=max_model_len,
+        )
+        self.sampling_params = SamplingParams(
+            temperature=0.0,
+            max_tokens=1,
+            logprobs=1
         )
 
 
