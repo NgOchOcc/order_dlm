@@ -206,7 +206,7 @@ class LLaDAEvaluator:
 
 
     def evaluate(self, output_file="results.json", max_samples=None, steps=128,
-                 gen_length=256, block_length=32, temperature=0., cfg_scale=0.):
+                 gen_length=256, block_length=32, temperature=0.3, cfg_scale=0.):
         results = []
         correct = total = 0
         samples = self.dataset[:max_samples] if max_samples else self.dataset
@@ -216,7 +216,6 @@ class LLaDAEvaluator:
         print(f"\nEvaluating {len(samples)} samples")
         print(f"Config: steps={steps}, gen_length={gen_length}, block_length={block_length}, "
               f"temp={temperature}, cfg={cfg_scale}")
-        print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         print("="*100)
 
         for idx, sample in enumerate(samples):
