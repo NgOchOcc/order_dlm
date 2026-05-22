@@ -1,5 +1,3 @@
-"""LLaDA Diffusion Model Evaluation on Math Datasets"""
-
 import torch
 import numpy as np
 import torch.nn.functional as F
@@ -11,16 +9,12 @@ import os
 import time
 from datetime import datetime
 
-try:
-    from math_verify import math_equal
-    MATH_VERIFY_AVAILABLE = True
-except ImportError:
-    MATH_VERIFY_AVAILABLE = False
-    print("Warning: math_verify not available, using string comparison")
+from math_verify import parse, verify
+from math_verify.parser import ExprExtractionConfig, LatexExtractionConfig
+MATH_VERIFY_AVAILABLE = True
 
 
 def add_gumbel_noise(logits, temperature):
-    """Add Gumbel noise for categorical sampling (float64 for precision)"""
     if temperature == 0:
         return logits
     logits = logits.to(torch.float64)
@@ -30,7 +24,6 @@ def add_gumbel_noise(logits, temperature):
 
 
 def get_num_transfer_tokens(mask_index, steps):
-    """Compute number of tokens to transfer at each diffusion step"""
     mask_num = mask_index.sum(dim=1, keepdim=True)
     base = mask_num // steps
     remainder = mask_num % steps
@@ -102,7 +95,6 @@ def generate_llada(model, prompt, attention_mask=None, steps=128, gen_length=128
 
 
 def format_time(seconds):
-    """Format seconds to HH:MM:SS"""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -110,8 +102,6 @@ def format_time(seconds):
 
 
 class LLaDAEvaluator:
-    """LLaDA Model Evaluator"""
-
     def __init__(self, model_name="GSAI-ML/LLaDA-8B-Base", device="auto"):
         print(f"Loading model: {model_name}")
         self.model_name = model_name
@@ -132,10 +122,8 @@ class LLaDAEvaluator:
             trust_remote_code=True
         ).to(self.device).eval()
 
-        print(f"Model loaded on {self.device}")
 
     def load_dataset(self, dataset_path=None):
-        """Load dataset from jsonl file"""
         if not dataset_path:
             dataset_path = "dataset/test500.jsonl"
 
@@ -150,7 +138,6 @@ class LLaDAEvaluator:
         print(f"Loaded {len(self.dataset)} problems from {dataset_path}")
 
     def create_prompt(self, problem):
-        """Create prompt with instruction to use \\boxed{} format"""
         if self.is_instruct:
             instruction = "Solve the following math problem step by step. Put your final answer in \\boxed{}."
             messages = [{"role": "user", "content": f"{instruction}\n\n{problem}"}]
@@ -160,7 +147,6 @@ class LLaDAEvaluator:
 
     def generate(self, problem, steps=128, gen_length=256, block_length=32,
                  temperature=0., cfg_scale=0., remasking='low_confidence'):
-        """Generate answer using diffusion sampling"""
         prompt = self.create_prompt(problem)
         encoded = self.tokenizer([prompt], add_special_tokens=False, padding=False, return_tensors="pt")
         input_ids = encoded['input_ids'].to(self.device)
@@ -177,13 +163,10 @@ class LLaDAEvaluator:
         return self.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
 
     def extract_answer(self, text):
-        """Extract answer from \\boxed{} or other patterns"""
-        # First try to extract from \boxed{}
         boxed_match = re.search(r'\\boxed\{([^}]+)\}', text)
         if boxed_match:
             return boxed_match.group(1).strip()
 
-        # Try other patterns
         patterns = [
             r"####\s*(.+)",
             r"(?:final answer|answer|solution)(?:\s+is)?:?\s*[\$]?([^$\n]+)[\$]?",
@@ -194,25 +177,19 @@ class LLaDAEvaluator:
             if match:
                 return match.group(1).strip()
 
-        # Fallback: find last number
         numbers = re.findall(r'[+-]?\d+(?:\.\d+)?', text)
         return numbers[-1] if numbers else text.strip()
 
     def check_correct(self, predicted, ground_truth):
-        """Check if answer is correct using math_verify or string comparison"""
-        if MATH_VERIFY_AVAILABLE:
-            try:
-                return math_equal(predicted, ground_truth)
-            except:
-                pass
+        config = LatexExtractionConfig()
+        pred_parsed = parse(predicted, config=config)
+        gt_parsed = parse(ground_truth, config=config)
+        is_correct = verify(pred_parsed, gt_parsed)
+        return is_correct
 
-        # Fallback
-        norm = lambda x: x.strip().replace(",", "").replace("$", "").replace("\\", "").lower()
-        return norm(predicted) == norm(ground_truth)
 
     def evaluate(self, output_file="results.json", max_samples=None, steps=128,
                  gen_length=256, block_length=32, temperature=0., cfg_scale=0.):
-        """Evaluate on dataset"""
         results = []
         correct = total = 0
         samples = self.dataset[:max_samples] if max_samples else self.dataset
