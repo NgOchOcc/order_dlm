@@ -1,8 +1,3 @@
-"""
-HDO-DLM Evaluation on Math500 Dataset
-Compares HDO-DLM with baseline confidence-based denoising
-"""
-
 import torch
 from transformers import AutoTokenizer, AutoModel
 import json
@@ -13,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from hdo_dlm import HDODLM
-from verifier import get_verifier
+from verifier import PRMScorer
 from math_verify import parse, verify
 from math_verify.parser import LatexExtractionConfig
 import re
@@ -54,7 +49,6 @@ class HDOEvaluator:
     def __init__(
         self,
         model_name="GSAI-ML/LLaDA-8B-Base",
-        verifier_type="lightweight",
         verifier_gpu=1,
         device="auto",
         beta=1.0,
@@ -100,9 +94,7 @@ class HDOEvaluator:
             trust_remote_code=True
         ).to(self.device).eval()
 
-        # Load verifier
-        print(f"Loading verifier: {verifier_type}")
-        self.verifier = get_verifier(verifier_type, gpu_id=verifier_gpu)
+        self.verifier = PRMScorer(gpu_id=verifier_gpu)
 
         # Initialize HDO-DLM
         self.hdo_dlm = HDODLM(
@@ -119,25 +111,16 @@ class HDOEvaluator:
             exploration_temp=exploration_temp,
         )
 
-        print(f"HDO-DLM initialized on {self.device}")
-
     def load_dataset(self, dataset_path=None):
-        """Load Math500 dataset"""
         if not dataset_path:
             dataset_path = "dataset/test500.jsonl"
-
-        if not os.path.exists(dataset_path):
-            raise FileNotFoundError(f"Dataset not found: {dataset_path}")
 
         self.dataset = []
         with open(dataset_path, 'r') as f:
             for line in f:
                 self.dataset.append(json.loads(line))
 
-        print(f"Loaded {len(self.dataset)} problems from {dataset_path}")
-
     def create_prompt(self, problem):
-        """Create prompt for the problem"""
         if self.is_instruct:
             instruction = "Solve the following math problem step by step. Put your final answer in \\boxed{}."
             messages = [{"role": "user", "content": f"{instruction}\n\n{problem}"}]
