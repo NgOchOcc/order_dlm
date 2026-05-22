@@ -23,18 +23,26 @@ def extract_boxed_answer(text):
 
 
 def verify_answer(predicted, ground_truth):
-    """Verify answer using math_verify"""
+    """Verify answer using math_verify with multiple strategies"""
+    # Normalize strings first
+    norm = lambda x: str(x).strip().replace(",", "").replace("$", "")
+    pred_norm = norm(predicted)
+    gt_norm = norm(ground_truth)
+
+    # Try with LatexExtractionConfig first
     try:
         config = LatexExtractionConfig()
-        pred_parsed = parse(predicted, extraction_config=config)
-        gt_parsed = parse(ground_truth, extraction_config=config)
+        pred_parsed = parse(pred_norm, extraction_config=config)
+        gt_parsed = parse(gt_norm, extraction_config=config)
         result = verify(pred_parsed, gt_parsed)
-        # Convert to boolean if needed
-        return bool(result)
-    except Exception as e:
-        # Fallback to string comparison
-        norm = lambda x: x.strip().replace(",", "").replace("$", "").replace("\\", "").lower()
-        return norm(predicted) == norm(ground_truth)
+        if result:
+            return True
+    except:
+        pass
+
+    # Fallback to string comparison
+    norm_strict = lambda x: str(x).strip().replace(",", "").replace("$", "").replace("\\", "").lower()
+    return norm_strict(predicted) == norm_strict(ground_truth)
 
 
 def format_time(seconds):
