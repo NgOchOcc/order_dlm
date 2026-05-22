@@ -1,0 +1,11 @@
+CUDA_VISIBLE_DEVICES=0 python eval_dream.py \
+    --model_name Dream-org/Dream-v0-Instruct-7B \
+    --dataset_path dataset/test500.jsonl \
+    --steps 512 \
+    --max_new_tokens 1024 \
+    --temperature 0.2 \
+    --top_p 0.95 \
+    --alg entropy \
+    --alg_temp 0.0 \
+    --max_samples 500 \
+    --output_file output/dream_math500.json
