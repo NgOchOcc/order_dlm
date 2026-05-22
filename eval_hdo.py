@@ -55,6 +55,7 @@ class HDOEvaluator:
         self,
         model_name="GSAI-ML/LLaDA-8B-Base",
         verifier_type="lightweight",
+        verifier_gpu=1,
         device="auto",
         beta=1.0,
         num_particles=1,
@@ -101,7 +102,7 @@ class HDOEvaluator:
 
         # Load verifier
         print(f"Loading verifier: {verifier_type}")
-        self.verifier = get_verifier(verifier_type, device=device)
+        self.verifier = get_verifier(verifier_type, gpu_id=verifier_gpu)
 
         # Initialize HDO-DLM
         self.hdo_dlm = HDODLM(
@@ -336,7 +337,8 @@ def main():
 
     # Model and dataset
     parser.add_argument("--model_name", default="GSAI-ML/LLaDA-8B-Base")
-    parser.add_argument("--verifier_type", default="lightweight", choices=["qwen", "lightweight"])
+    parser.add_argument("--verifier_type", default="lightweight", choices=["qwen_vllm", "lightweight"])
+    parser.add_argument("--verifier_gpu", type=int, default=1, help="GPU for Qwen PRM")
     parser.add_argument("--dataset_path", default="dataset/test500.jsonl")
     parser.add_argument("--output_file", default="hdo_results.json")
     parser.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
@@ -362,6 +364,7 @@ def main():
     evaluator = HDOEvaluator(
         model_name=args.model_name,
         verifier_type=args.verifier_type,
+        verifier_gpu=args.verifier_gpu,
         device=args.device,
         beta=args.beta,
         candidate_branching=args.candidate_branching,
