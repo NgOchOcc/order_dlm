@@ -247,8 +247,6 @@ class LLaDAEvaluator:
                     f"Time: {format_time(sample_time)} | Total: {format_time(total_time)} | "
                     f"Pred: {predicted} | GT:   {gt_answer}"
                 )
-                print("-"*100)
-
                 results.append({
                     'index': idx,
                     'problem': problem,

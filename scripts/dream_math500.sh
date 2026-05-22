@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0 python eval_dream.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_dream.py \
     --model_name Dream-org/Dream-v0-Instruct-7B \
     --dataset_path dataset/test500.jsonl \
     --steps 512 \
