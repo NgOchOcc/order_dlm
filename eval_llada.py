@@ -235,7 +235,8 @@ class LLaDAEvaluator:
                 if predicted == gt_answer and not is_correct:
                     print(f"  WARNING: Predicted '{predicted}' == GT '{gt_answer}' but verify returned {is_correct}")
 
-                correct += 1 if is_correct
+                if is_correct:
+                    correct += 1 
                 total += 1
                 sample_time = time.time() - sample_start
                 total_time = time.time() - start_time
