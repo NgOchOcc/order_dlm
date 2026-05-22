@@ -11,7 +11,27 @@ from datetime import datetime
 
 from math_verify import parse, verify
 from math_verify.parser import ExprExtractionConfig, LatexExtractionConfig
-MATH_VERIFY_AVAILABLE = True
+
+
+def extract_boxed_answer(text):
+    """Extract answer from \\boxed{} format"""
+    match = re.search(r'\\boxed\{([^}]+)\}', text)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def verify_answer(predicted, ground_truth):
+    """Verify answer using math_verify"""
+    try:
+        config = LatexExtractionConfig()
+        pred_parsed = parse(predicted, extraction_config=config)
+        gt_parsed = parse(ground_truth, extraction_config=config)
+        return verify(pred_parsed, gt_parsed)
+    except Exception as e:
+        # Fallback to string comparison
+        norm = lambda x: x.strip().replace(",", "").replace("$", "").replace("\\", "").lower()
+        return norm(predicted) == norm(ground_truth)
 
 
 def add_gumbel_noise(logits, temperature):
@@ -163,10 +183,13 @@ class LLaDAEvaluator:
         return self.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
 
     def extract_answer(self, text):
-        boxed_match = re.search(r'\\boxed\{([^}]+)\}', text)
-        if boxed_match:
-            return boxed_match.group(1).strip()
+        """Extract answer with priority: boxed > patterns > last number"""
+        # First try boxed
+        boxed = extract_boxed_answer(text)
+        if boxed:
+            return boxed
 
+        # Try other patterns
         patterns = [
             r"####\s*(.+)",
             r"(?:final answer|answer|solution)(?:\s+is)?:?\s*[\$]?([^$\n]+)[\$]?",
@@ -177,15 +200,9 @@ class LLaDAEvaluator:
             if match:
                 return match.group(1).strip()
 
+        # Fallback to last number
         numbers = re.findall(r'[+-]?\d+(?:\.\d+)?', text)
         return numbers[-1] if numbers else text.strip()
-
-    def check_correct(self, predicted, ground_truth):
-        config = LatexExtractionConfig()
-        pred_parsed = parse(predicted, config=config)
-        gt_parsed = parse(ground_truth, config=config)
-        is_correct = verify(pred_parsed, gt_parsed)
-        return is_correct
 
 
     def evaluate(self, output_file="results.json", max_samples=None, steps=128,
@@ -215,7 +232,7 @@ class LLaDAEvaluator:
                                          block_length=block_length, temperature=temperature, cfg_scale=cfg_scale)
                 predicted = self.extract_answer(generated)
                 gt_answer = self.extract_answer(ground_truth) if isinstance(ground_truth, str) else str(ground_truth)
-                is_correct = self.check_correct(predicted, gt_answer)
+                is_correct = verify_answer(predicted, gt_answer)
 
                 if is_correct:
                     correct += 1
