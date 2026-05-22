@@ -227,8 +227,8 @@ class LLaDAEvaluator:
 
                 # Print detailed info for each sample
                 status = "✓" if is_correct else "✗"
-                print(f"{status} [{idx+1}/{len(samples)}] | Acc: {acc:.2f}% | Time: {format_time(sample_time)} | "
-                      f"Total: {format_time(total_time)}")
+                print(f"{status} [{idx+1}/{len(samples)}] | Acc: {correct}/{total} = {acc:.2f}% | "
+                      f"Time: {format_time(sample_time)} | Total: {format_time(total_time)}")
                 print(f"  Pred: {predicted}")
                 print(f"  GT:   {gt_answer}")
                 print("-"*100)
